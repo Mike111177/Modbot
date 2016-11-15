@@ -1,5 +1,6 @@
 /Configuration.ini
 /days.cache
-/__pycache__/
+**/__pycache__/**
 /.project
 /.pydevproject
+/config/

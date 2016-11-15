@@ -1,9 +1,10 @@
-from components.twitchconnector import TwitchConnector as TCon
-from components.discordconnector import DiscordConnector as DCon
+import connectors.twitchconnector as TCon
+import connectors.discordconnector as DCon
 from threading import Thread
 
 class TwitchRunner(Thread):
     def __init__(self, tcon):
+        Thread.__init__(self)
         self.tcon = tcon
     
     def run(self):
@@ -11,10 +12,11 @@ class TwitchRunner(Thread):
         
 class DiscordRunner(Thread):
     def __init__(self, tcon):
+        Thread.__init__(self)
         self.tcon = tcon
     
     def run(self):
         self.tcon.run()
         
-TwitchRunner(TCon()).start()
-DiscordRunner(DCon()).start()
+TwitchRunner(TCon).start()
+DiscordRunner(DCon).start()

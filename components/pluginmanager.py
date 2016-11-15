@@ -1,3 +1,4 @@
-class PluginManager as Plm(object):
+def start():
+    pass
 
 
