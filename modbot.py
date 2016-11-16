@@ -5,7 +5,7 @@ from threading import Thread
 
 class TwitchRunner(Thread):
     def __init__(self, tcon):
-        Thread.__init__(self)
+        Thread.__init__(self, name="IRC_Async_Loop")
         self.tcon = tcon
     
     def run(self):
@@ -13,7 +13,7 @@ class TwitchRunner(Thread):
         
 class DiscordRunner(Thread):
     def __init__(self, tcon):
-        Thread.__init__(self)
+        Thread.__init__(self, name="Discord_Async_Loop")
         self.tcon = tcon
     
     def run(self):

@@ -6,6 +6,7 @@ from lib import threadpool
 
 plugins = {}
 mods = {}
+resources = {}
 
 handlers = {}
 prio=range(0,5)
@@ -23,6 +24,9 @@ def loadPlugin(name):
     mod = __import__(name)
     registerPlugin(mod, name)
     sys.path.pop(0)
+    
+def addresource(name, resource):
+    resource[name]=resource
     
 def registerPlugin(mod, name):
     try:
