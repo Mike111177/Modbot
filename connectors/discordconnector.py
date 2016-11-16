@@ -5,12 +5,12 @@ import asyncio
 defaults = {"Discord": {
     "Token": ""}};
 
-rec = {};
+recd = [];
 
 async def on_ready():
     print('Logged in as')
-    print(rec["BOT"].user.name)
-    print(rec["BOT"].user.id)
+    print(recd[0]["BOT"].user.name)
+    print(recd[0]["BOT"].user.id)
     print('------')
     
 async def on_message(message):
@@ -25,6 +25,7 @@ def run():
     token = config.load("discord", defaults)["Discord"]["Token"]
     loop.create_task(bot.start(token))
     rec = {"BOT":bot,"LOOP":loop}
+    recd.append(rec)
     pluginmanager.addresource("DSC", rec)
     loop.run_forever()
     

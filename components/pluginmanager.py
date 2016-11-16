@@ -26,7 +26,7 @@ def loadPlugin(name):
     sys.path.pop(0)
     
 def addresource(name, resource):
-    resource[name]=resource
+    resources[name]=resource
     
 def registerPlugin(mod, name):
     try:
