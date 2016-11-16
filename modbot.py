@@ -1,5 +1,6 @@
 import connectors.twitchconnector as TCon
 import connectors.discordconnector as DCon
+import components.pluginmanager as plm
 from threading import Thread
 
 class TwitchRunner(Thread):
@@ -17,6 +18,7 @@ class DiscordRunner(Thread):
     
     def run(self):
         self.tcon.run()
-        
+   
 TwitchRunner(TCon).start()
 DiscordRunner(DCon).start()
+plm.initialize()
