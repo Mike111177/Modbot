@@ -1,6 +1,6 @@
 from components import abstracts, pluginmanager, config
 from math import floor
-from datetime import timedelta
+from datetime import timedelta, datetime
 import traceback, asyncio, re
 import chatanalytics as nooblist
 from socket import gethostbyname_ex as checkhost
@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from time import clock
 
 defaults = {"Reporting": {"Channel": ""}}
-cfg = config.load("name", defaults)
+cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
 nbotpstr = '[a-zA-Z0-9]{1,25}\s->\s(?P<Name>[a-zA-Z0-9]{1,25})\shas\sbeen\sgranted\spermission\sto\spost\sa\slink\sfor\s60\sseconds\.'
@@ -66,7 +66,8 @@ def isSpamBot(name, message, cid):
 class Plugin(abstracts.Plugin):
     
     def handlers(self):
-        return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg)]
+        return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
+                abstracts.Handler('DSC:MSG', self, self.dismsg)]
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
@@ -85,3 +86,30 @@ class Plugin(abstracts.Plugin):
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
             return
+        
+    def dismsg(self, message):
+        if message.content.startswith('?bancount'):
+            disbot = pluginmanager.resources["DSC"]["BOT"]
+            loop = pluginmanager.resources["DSC"]["LOOP"]
+            args = str(message.content).split(' ')
+            dtime = 1
+            if len(args)>1:
+                try:
+                    dtime = float(args[1])
+                except:
+                    dtime = 1
+            asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, dtime),loop)
+                      
+    async def bancount(self, disbot, channel, dtime):
+        counter = 0
+        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['Channel'])), limit=500, after=(datetime.utcnow()-timedelta(hours=dtime))):
+            if m.author == disbot.user:
+                counter += 1
+        await disbot.send_message(channel, 'There have been %d automated bans in the past %s hour(s).'%(counter, dtime))
+            
+            
+            
+            
+            
+            
+            

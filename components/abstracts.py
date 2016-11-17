@@ -16,7 +16,7 @@ class Plugin(object):
     
 class Handler(object):
     
-    PRIORITY_MAX = 0
+    PRIORITY_MONITOR = 0
     PRIORITY_HIGH = 1
     PRIORITY_MED = 2
     PRIORITY_LOW = 3
@@ -28,6 +28,12 @@ class Handler(object):
         self.plugin = plugin
         self.function = function
         
+    def __repr__(self):
+        return self.__str__()
+    
+    def __str__(self):
+        return "Handler(plugin=%s,function=%s)"%(self.plugin.__module__,self.function.__name__)
+    
     def handle(self, args, kargs):
         return self.function(*args,**kargs)
         

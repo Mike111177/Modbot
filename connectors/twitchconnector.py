@@ -11,10 +11,11 @@ async def connected(bot, **kw):
     
     
 @irc3.event(irc3.rfc.PRIVMSG)
-async def prvmsg(bot, event=None, mask=None, **kw):
-    kw['tags'] = irc3.tags.decode(kw['tags'])
+async def prvmsg(bot, event=None, mask=None, tags=None, **kw):
+    if tags:
+        kw['tags'] = irc3.tags.decode(tags)
     kw['nick'] = mask.nick
-    pluginmanager.runEvent("TWIRC:MSG", **kw)
+    pluginmanager.runEvent("TWITCH:MSG", **kw)
 
 def run():
     loop = asyncio.new_event_loop()

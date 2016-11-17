@@ -5,6 +5,8 @@ import threading, pickle
 from datetime import datetime, timezone
 from urllib import request
 import json
+from math import floor
+import discord
 
 defaults = {"Chat": {"Channel": "", "Client-ID": ""}}
 cfg = config.load("chatanalytics", defaults)
@@ -94,8 +96,16 @@ def getUserData(name, cid):
 
 class Plugin(abstracts.Plugin):
     
+    def __init__(self):
+        self.counter = 0
+        self.running = True
+        bot = pluginmanager.resources["DSC"]["BOT"]
+        loop = pluginmanager.resources["DSC"]["LOOP"]
+        asyncio.run_coroutine_threadsafe(self.trackloop(bot), loop)
+    
     def handlers(self):
-        return [abstracts.Handler('DSC:MSG', self, self.command)]
+        return [abstracts.Handler('DSC:MSG', self, self.command),
+                abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
     
     def command(self, message):
         if message.content.startswith('?nooblist'):
@@ -107,4 +117,20 @@ class Plugin(abstracts.Plugin):
                 out = 'No noobs found in chat :smile:'
             else:
                 out = str(nubs)
-            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s [%fs]'%(out,clock()-t)), loop) 
+            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s [%fs]'%(out,clock()-t)), loop)
+            
+    def chatcount(self, **kw):
+        self.counter+=1
+            
+    async def trackloop(self, bot):
+        await bot.wait_until_ready()
+        while True:
+            await bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%self.counter))
+            self.counter = 0
+            await asyncio.sleep(60)
+        
+        
+        
+        
+        
+        
