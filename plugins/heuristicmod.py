@@ -2,7 +2,6 @@ from components import abstracts, pluginmanager, config
 from math import floor
 from datetime import timedelta, datetime
 import traceback, asyncio, re
-import chatanalytics as nooblist
 from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock
@@ -34,7 +33,7 @@ def containsLink(message):
     return result
 
 def isNoob(name, cid):
-    age = nooblist.getUserAge(nooblist.getUserDate(nooblist.getUserData(name, cid)))
+    age = pluginmanager.plugins['twitchapi'].getUser(name=name).getUserAge()
     return age<43200, age
 
 def containsAddress(message):
@@ -67,7 +66,7 @@ class Plugin(abstracts.Plugin):
     
     def handlers(self):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
-                abstracts.Handler('DSC:MSG', self, self.dismsg)]
+                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt)]
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
@@ -87,18 +86,17 @@ class Plugin(abstracts.Plugin):
             print(traceback.format_exc())
             return
         
-    def dismsg(self, message):
-        if message.content.startswith('?bancount'):
-            disbot = pluginmanager.resources["DSC"]["BOT"]
-            loop = pluginmanager.resources["DSC"]["LOOP"]
-            args = str(message.content).split(' ')
-            dtime = 1
-            if len(args)>1:
-                try:
-                    dtime = float(args[1])
-                except:
-                    dtime = 1
-            asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, dtime),loop)
+    def bancnt(self, message=None, args=None, **kw):
+        disbot = pluginmanager.resources["DSC"]["BOT"]
+        loop = pluginmanager.resources["DSC"]["LOOP"]
+        dtime = 1
+        if len(args)>0:
+            try:
+                dtime = float(args[0])
+            except:
+                dtime = 1
+        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, dtime),loop)
+                
                       
     async def bancount(self, disbot, channel, dtime):
         counter = 0

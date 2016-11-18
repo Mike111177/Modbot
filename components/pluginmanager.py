@@ -3,7 +3,6 @@ from imp import reload
 from components import abstracts
 from lib import threadpool
 
-
 plugins = {}
 mods = {}
 resources = {}
@@ -18,6 +17,7 @@ def initialize():
         fname, ext = os.path.splitext(f)
         if ext == '.py':
             loadPlugin(fname)
+    
             
 def loadPlugin(name):
     sys.path.insert(0, "plugins/")
@@ -37,6 +37,7 @@ def registerPlugin(mod, name):
             plugins[name] = plug
             for han in plug.handlers():
                 addHandler(han)
+            plug.load()
         else:
             print(name + " is an invalid plugin!")
     except Exception as e: 

@@ -2,7 +2,7 @@ from components import abstracts, pluginmanager, config
 import asyncio
 from time import clock
 import threading, pickle
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib import request
 import json
 from math import floor
@@ -14,30 +14,20 @@ cfg = config.load("chatanalytics", defaults)
 
 class Checker(threading.Thread):
     
-    def __init__(self, uname,dtime,ntime,cid):
+    def __init__(self, uname,dtime,cid):
         self.cid = cid
         self.uname = uname
         self.noob = True
-        self.dname = uname
         self.dtime = dtime
-        self.ntime = ntime
         threading.Thread.__init__(self, name="Check Time: %s"%uname)
         self.start()
         
     def run(self):
         try:
-            data = getUserData(self.uname, self.cid)
-            self.dname = data['display_name']
-            if not ((self.ntime-getUserDate(data)).total_seconds()<(self.dtime)):
+            if not (pluginmanager.plugins['twitchapi'].getUser(name=self.uname).getUserAge()<(self.dtime)):
                 self.noob = False
         except:
             return
-
-def getUserDate(data):
-    return datetime.strptime(data['created_at'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-
-def getUserAge(date):
-    return (datetime.now(tz=timezone.utc)-date).total_seconds()
     
 def getNooblist(channel, cid):
     name = channel.lstrip('#')
@@ -51,20 +41,19 @@ def getNooblist(channel, cid):
     except:
         clearedlist=[]
     
-    now = datetime.now(tz=timezone.utc)
     chatlist = getChatters(name, cfg['Chat']['Client-ID'])
     threadlist = []
     
     for user in chatlist:
         if user not in clearedlist:
-            threadlist.append(Checker(user,43200,now,cid))
+            threadlist.append(Checker(user,43200,cid))
     
     nooblist = []
     
     for thread in threadlist:
         thread.join()
         if thread.noob:
-            nooblist.append(thread.dname)
+            nooblist.append(thread.uname)
         else:
             clearedlist.append(thread.uname)
     
@@ -80,20 +69,6 @@ cid = None
 def getChatters(name, cid):
     return json.loads((request.urlopen("http://tmi.twitch.tv/group/user/%s/chatters"%name).read().decode("utf-8")))["chatters"]["viewers"]
 
-def getUserDisplayName(user, cid):
-    return getUserData(user, cid)['display_name']
-
-def getUserData(name, cid):
-    try:
-        req = request.Request("https://api.twitch.tv/kraken/users/%s"%name,  headers={'Client-ID': cid}) #LOOK AT ME IM TWITCH! I REQUIRE A FUCKING CLIENT ID NOW TO USE MY API
-        return json.loads(request.urlopen(req).read().decode())
-    except:
-        try:
-            req = request.Request("https://api.twitch.tv/kraken/users/%s"%name,  headers={'Client-ID': cid}) #LOOK AT ME IM TWITCH! I REQUIRE A FUCKING CLIENT ID NOW TO USE MY API
-            return json.loads(request.urlopen(req).read().decode())
-        except:
-            pass
-
 class Plugin(abstracts.Plugin):
     
     def __init__(self):
@@ -104,10 +79,11 @@ class Plugin(abstracts.Plugin):
         asyncio.run_coroutine_threadsafe(self.trackloop(bot), loop)
     
     def handlers(self):
-        return [abstracts.Handler('DSC:MSG', self, self.command),
+        return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
+                abstracts.Handler('DSC:COMMAND:?GETAGE', self, self.getage),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
     
-    def command(self, message):
+    def nooblist(self, message=None, **kw):
         if message.content.startswith('?nooblist'):
             bot = pluginmanager.resources["DSC"]["BOT"]
             loop = pluginmanager.resources["DSC"]["LOOP"]
@@ -118,6 +94,12 @@ class Plugin(abstracts.Plugin):
             else:
                 out = str(nubs)
             asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s [%fs]'%(out,clock()-t)), loop)
+    
+    def getage(self, message=None, args=None, **kw):
+        if len(args)>0:
+            bot = pluginmanager.resources["DSC"]["BOT"]
+            loop = pluginmanager.resources["DSC"]["LOOP"]
+            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(timedelta(seconds=floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
             
     def chatcount(self, **kw):
         self.counter+=1

@@ -27,9 +27,8 @@ class Worker(Thread):
         while self.go:
             func, args, kargs = self.tasks.get()
             try: func(*args, **kargs)
-            except Exception as e: 
-                traceback.print_exc()
-            self.tasks.task_done()
+            except: traceback.print_exc()
+            finally: self.tasks.task_done()
             
     def kill(self):
         self.go = False
