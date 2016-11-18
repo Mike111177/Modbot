@@ -11,6 +11,7 @@ class Plugin(abstracts.Plugin):
     def command(self, message=None, args=None, **kw):
         bot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
+        asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
         string = ' '.join(args)
         response = urllib.request.urlopen('http://thuum.org/translate-dragon.php?text=%s'%string.replace(" ","%20"))
         html = response.read()

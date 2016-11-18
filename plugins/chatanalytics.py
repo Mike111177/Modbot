@@ -84,21 +84,22 @@ class Plugin(abstracts.Plugin):
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
     
     def nooblist(self, message=None, **kw):
-        if message.content.startswith('?nooblist'):
-            bot = pluginmanager.resources["DSC"]["BOT"]
-            loop = pluginmanager.resources["DSC"]["LOOP"]
-            t = clock()
-            nubs = getNooblist(cfg['Chat']['Channel'], cfg['Chat']['Client-ID'])
-            if len(nubs) is 0:
-                out = 'No noobs found in chat :smile:'
-            else:
-                out = str(nubs)
-            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s [%fs]'%(out,clock()-t)), loop)
+        bot = pluginmanager.resources["DSC"]["BOT"]
+        loop = pluginmanager.resources["DSC"]["LOOP"]
+        asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
+        t = clock()
+        nubs = getNooblist(cfg['Chat']['Channel'], cfg['Chat']['Client-ID'])
+        if len(nubs) is 0:
+            out = 'No noobs found in chat :smile:'
+        else:
+            out = str(nubs)
+        asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s [%fs]'%(out,clock()-t)), loop)
     
     def getage(self, message=None, args=None, **kw):
         if len(args)>0:
             bot = pluginmanager.resources["DSC"]["BOT"]
             loop = pluginmanager.resources["DSC"]["LOOP"]
+            asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
             asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(timedelta(seconds=floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
             
     def chatcount(self, **kw):

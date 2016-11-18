@@ -89,6 +89,7 @@ class Plugin(abstracts.Plugin):
     def bancnt(self, message=None, args=None, **kw):
         disbot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
+        asyncio.run_coroutine_threadsafe(disbot.send_typing(message.channel), loop)
         dtime = 1
         if len(args)>0:
             try:
