@@ -2,37 +2,32 @@ from components import abstracts, pluginmanager, config
 import asyncio
 from time import clock
 import threading, pickle
-from datetime import datetime, timezone, timedelta
-from urllib import request
-import json
+from datetime import timedelta
 from math import floor
 import discord
 
-defaults = {"Chat": {"Channel": "", "Client-ID": ""}}
+defaults = {"Chat": {"Channel": ""}}
+cachename = "data/days.cache"
 cfg = config.load("chatanalytics", defaults)
 
 
 class Checker(threading.Thread):
     
-    def __init__(self, uname,dtime,cid):
-        self.cid = cid
+    def __init__(self, uname):
         self.uname = uname
         self.noob = True
-        self.dtime = dtime
         threading.Thread.__init__(self, name="Check Time: %s"%uname)
         self.start()
         
     def run(self):
         try:
-            if not (pluginmanager.plugins['twitchapi'].getUser(name=self.uname).getUserAge()<(self.dtime)):
+            if not pluginmanager.plugins['twitchapi'].getUser(name=self.uname).getUserAge()<43200:
                 self.noob = False
         except:
             return
     
-def getNooblist(channel, cid):
+def getNooblist(channel):
     name = channel.lstrip('#')
-    
-    cachename = "data/days.cache"
     
     try:
         pkl_file = open(cachename, 'rb')
@@ -41,12 +36,11 @@ def getNooblist(channel, cid):
     except:
         clearedlist=[]
     
-    chatlist = getChatters(name, cfg['Chat']['Client-ID'])
+    chatlist = set(pluginmanager.plugins['twitchapi'].getChannel(name=name).getChatters())-set(clearedlist)
     threadlist = []
     
     for user in chatlist:
-        if user not in clearedlist:
-            threadlist.append(Checker(user,43200,cid))
+        threadlist.append(Checker(user))
     
     nooblist = []
     
@@ -57,17 +51,10 @@ def getNooblist(channel, cid):
         else:
             clearedlist.append(thread.uname)
     
-    output = open(cachename, 'wb')
-    pickle.dump(clearedlist, output)
-    output.close()
+    with open(cachename, 'wb') as output:
+        pickle.dump(clearedlist, output)
 
     return nooblist
-
-
-cid = None
-
-def getChatters(name, cid):
-    return json.loads((request.urlopen("http://tmi.twitch.tv/group/user/%s/chatters"%name).read().decode("utf-8")))["chatters"]["viewers"]
 
 class Plugin(abstracts.Plugin):
     
@@ -90,7 +77,7 @@ class Plugin(abstracts.Plugin):
         loop = pluginmanager.resources["DSC"]["LOOP"]
         asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
         t = clock()
-        nubs = getNooblist(cfg['Chat']['Channel'], cfg['Chat']['Client-ID'])
+        nubs = getNooblist(cfg['Chat']['Channel'])
         if len(nubs) is 0:
             out = 'No noobs found in chat :smile:'
         else:
@@ -124,9 +111,3 @@ class Plugin(abstracts.Plugin):
                     self.counter[x] = 0
                 await bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%count))
                 await asyncio.sleep(15)
-        
-        
-        
-        
-        
-        

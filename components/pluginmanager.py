@@ -10,7 +10,7 @@ resources = {}
 handlers = {}
 prio=range(0,5)
 
-pool = threadpool.ThreadPool(5, "Tasker")
+pool = threadpool.ThreadPool(10, "Event Dispatch")
 
 def initialize():
     for f in os.listdir("plugins/"):

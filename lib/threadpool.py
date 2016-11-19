@@ -3,7 +3,7 @@ Author Mike
 """
 
 from queue import Queue
-from threading import Thread
+from threading import Thread, Lock
 import traceback
 
 global num
@@ -46,8 +46,41 @@ class ThreadPool(Queue):
         """Add a task to the queue"""
         self.put((func, args, kargs))
         
+    def list(self, func, arglist):
+        runners = []
+        for x in arglist:
+            runner = Container(func,x)
+            self.add_task(runner.exe)
+            runners.append(runner)
+        results = []
+        for x in runners:
+            results.append(x.getResult())
+        return results
+        
     def kill(self):
         for i in range(0,len(self.threads)):
             t = self.threads[i]
             t.kill()
         self.threads = []
+        
+class Container(object):
+    
+    def __init__(self, func, *args, **kargs):
+        self.func = func
+        self.args = args
+        self.kargs = kargs
+        self.lock = Lock()
+        self.lock.acquire()
+        
+    def exe(self):
+        try:
+            self.res = self.func(*self.args, **self.kargs)
+        except:
+            self.res = None
+        finally:
+            self.lock.release()
+        
+    def getResult(self):
+        self.lock.acquire()
+        self.lock.release()
+        return self.res
