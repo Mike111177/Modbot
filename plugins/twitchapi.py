@@ -75,6 +75,13 @@ class TwitchUser(object):
             self.__retrieve__()
             return self.acd
         
+    def getUserID(self):
+        if self.userid:
+            return self.userid
+        else:
+            self.__retrieve__()
+            return self.userid
+        
     def getUserAge(self):
         return (datetime.now(tz=timezone.utc)-self.getACD()).total_seconds()
         

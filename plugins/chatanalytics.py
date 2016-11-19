@@ -72,8 +72,9 @@ def getChatters(name, cid):
 class Plugin(abstracts.Plugin):
     
     def __init__(self):
-        self.counter = 0
+        self.counter = [0,0,0,0]
         self.running = True
+        self.clock = threading.Lock()
         bot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
         asyncio.run_coroutine_threadsafe(self.trackloop(bot), loop)
@@ -81,6 +82,7 @@ class Plugin(abstracts.Plugin):
     def handlers(self):
         return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
                 abstracts.Handler('DSC:COMMAND:?GETAGE', self, self.getage),
+                abstracts.Handler('DSC:COMMAND:?GETID', self, self.getid),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
     
     def nooblist(self, message=None, **kw):
@@ -102,15 +104,26 @@ class Plugin(abstracts.Plugin):
             asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
             asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(timedelta(seconds=floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
             
+    def getid(self, message=None, args=None, **kw):
+        if len(args)>0:
+            bot = pluginmanager.resources["DSC"]["BOT"]
+            loop = pluginmanager.resources["DSC"]["LOOP"]
+            asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
+            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserID()))), loop)
+            
     def chatcount(self, **kw):
-        self.counter+=1
+        with self.clock:
+            self.counter=[x+1 for x in self.counter]
             
     async def trackloop(self, bot):
         await bot.wait_until_ready()
         while True:
-            await bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%self.counter))
-            self.counter = 0
-            await asyncio.sleep(60)
+            for x in range(0,4):
+                with self.clock:
+                    count = self.counter[x]
+                    self.counter[x] = 0
+                await bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%count))
+                await asyncio.sleep(15)
         
         
         
