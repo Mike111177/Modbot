@@ -2,6 +2,7 @@ import os, sys
 from imp import reload
 from components import abstracts
 from lib import threadpool
+import traceback
 
 plugins = {}
 mods = {}
@@ -17,6 +18,8 @@ def initialize():
         fname, ext = os.path.splitext(f)
         if ext == '.py':
             loadPlugin(fname)
+    for plug in plugins:
+        plugins[plug].load()
     
             
 def loadPlugin(name):
@@ -37,11 +40,11 @@ def registerPlugin(mod, name):
             plugins[name] = plug
             for han in plug.handlers():
                 addHandler(han)
-            plug.load()
         else:
             print(name + " is an invalid plugin!")
     except Exception as e: 
         print(name + " has errors on loading! "  + str(e))
+        traceback.print_exc()
         
 def addHandler(handler):
     if handler.event not in handlers:

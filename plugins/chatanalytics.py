@@ -58,7 +58,7 @@ def getNooblist(channel):
 
 class Plugin(abstracts.Plugin):
     
-    def __init__(self):
+    def load(self):
         self.counter = [0,0,0,0]
         self.running = True
         self.clock = threading.Lock()
