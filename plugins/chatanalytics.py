@@ -9,6 +9,7 @@ import discord
 defaults = {"Chat": {"Channel": ""}}
 cachename = "data/days.cache"
 cfg = config.load("chatanalytics", defaults)
+channel = cfg['Chat']['Channel'].lstrip('#')
 
 
 class Checker(threading.Thread):
@@ -56,6 +57,25 @@ def getNooblist(channel):
 
     return nooblist
 
+def formattime(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    y, d = divmod(d, 365)
+    fstring = '%02d:%02d:%02d'%(h,m,s)
+    if d:
+        if d == 1:
+            fstring = '%d day, '%d + fstring
+        else:
+            fstring = '%d days, '%d + fstring
+    if y:
+        if y == 1:
+            fstring = '%d year, '%y + fstring
+        else:
+            fstring = '%d years, '%y + fstring
+            
+    return fstring
+
 class Plugin(abstracts.Plugin):
     
     def load(self):
@@ -70,6 +90,7 @@ class Plugin(abstracts.Plugin):
         return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
                 abstracts.Handler('DSC:COMMAND:?GETAGE', self, self.getage),
                 abstracts.Handler('DSC:COMMAND:?GETID', self, self.getid),
+                abstracts.Handler('DSC:COMMAND:?FOLLOWAGE', self, self.getfollowage),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
     
     def nooblist(self, message=None, **kw):
@@ -89,7 +110,20 @@ class Plugin(abstracts.Plugin):
             bot = pluginmanager.resources["DSC"]["BOT"]
             loop = pluginmanager.resources["DSC"]["LOOP"]
             asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
-            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(timedelta(seconds=floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
+            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(formattime(floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
+            
+    def getfollowage(self, message=None, args=None, **kw):
+        if len(args)>0:
+            bot = pluginmanager.resources["DSC"]["BOT"]
+            loop = pluginmanager.resources["DSC"]["LOOP"]
+            asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
+            chan = pluginmanager.plugins['twitchapi'].getChannel(name=channel)
+            tseconds = pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getFollowAge(chan)
+            if tseconds:
+                tdelta = formattime(seconds=floor(tseconds))
+                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%tdelta), loop)
+            else:
+                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s is not following %s'%(args[0],channel)), loop)
             
     def getid(self, message=None, args=None, **kw):
         if len(args)>0:

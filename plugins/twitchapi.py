@@ -50,6 +50,19 @@ def getChannelData(name=None,userid=None):
             return json.loads(request.urlopen(req).read().decode())
         except:
             return None
+           
+def getFollowData(userid, channelid):
+    try:
+        req = request.Request("https://api.twitch.tv/kraken/users/%s/follows/channels/%s"%(userid, channelid),  headers={'Client-ID': cid, 'Accept': VERSION5})
+        return json.loads(request.urlopen(req).read().decode())
+    except Exception as e:
+        print(e)
+        try:
+            req = request.Request("https://api.twitch.tv/kraken/users/%s/follows/channels/%s"%(userid, channelid),  headers={'Client-ID': cid,'Accept': VERSION5})
+            return json.loads(request.urlopen(req).read().decode())
+        except:
+            return None
+        
         
 def parseDate(datestr):
     return datetime.strptime(datestr, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
@@ -107,7 +120,21 @@ class TwitchUser(object):
         
     def getUserAge(self):
         return (datetime.now(tz=timezone.utc)-self.getACD()).total_seconds()
-        
+    
+    def getFollowDate(self, channel):
+        data = getFollowData(self.getUserID(), channel.getUserID())
+        if data and 'created_at' in data:
+            return datetime.strptime(data['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+        else:
+            return None
+    
+    def getFollowAge(self, channel):
+        date = self.getFollowDate(channel)
+        if date:
+            return (datetime.now(tz=timezone.utc)-date).total_seconds()
+        else:
+            return None          
+                    
     def __repr__(self):
         return self.__str__()
     
@@ -132,6 +159,8 @@ class TwitchChannel(object):
     def __retrieve__(self):
         try:
             data = getChannelData(self.name, self.userid)
+            self.name=data['name']
+            self.userid=data['_id']
         except:
             pass
         
