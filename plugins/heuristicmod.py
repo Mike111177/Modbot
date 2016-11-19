@@ -6,13 +6,13 @@ from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock
 
-defaults = {"Reporting": {"Channel": ""}}
+defaults = {"Reporting": {"Channel": ""}, "SpecialCase": {"Regex": ""}}
 cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
 nbotpstr = '[a-zA-Z0-9]{1,25}\s->\s(?P<Name>[a-zA-Z0-9]{1,25})\shas\sbeen\sgranted\spermission\sto\spost\sa\slink\sfor\s60\sseconds\.'
 regperm = re.compile(nbotpstr)
-regaddr = re.compile('02481', re.IGNORECASE)
+regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
 
 permitcache = {}
@@ -36,8 +36,8 @@ def isNoob(name, cid):
     age = pluginmanager.plugins['twitchapi'].getUser(name=name).getUserAge()
     return age<43200, age
 
-def containsAddress(message):
-    if regaddr.search(message):
+def containsSpecial(message):
+    if cfg["SpecialCase"]["Regex"]!='' and regspecial.search(message):
         return True
     else:
         return False
@@ -55,7 +55,7 @@ def isSpamBot(name, message, cid):
         links = containsLink(message)
         
         
-    addr = containsAddress(message)
+    addr = containsSpecial(message)
     if links or addr:
         noob, age = isNoob(name, cid)
         if noob:
