@@ -4,10 +4,20 @@ Author Mike
 
 from queue import Queue
 from threading import Thread, Lock
+from time import sleep
 import traceback
 
 global num
 num = 0;
+
+def sleepLock(time, lock,locked):
+    if not locked:
+        lock.acquire()
+    sleep(time)
+    try:
+        lock.release()
+    except:
+        pass
 
 def getNum():
     global num
@@ -41,6 +51,9 @@ class ThreadPool(Queue):
         self.name = name
         for _ in range(num_threads): 
             self.threads.append(Worker(self))
+            
+    def interuptableSleep(self, time, lock,locked=False):
+        self.add_task(sleepLock,time,lock,locked)
 
     def add_task(self, func, *args, **kargs):
         """Add a task to the queue"""

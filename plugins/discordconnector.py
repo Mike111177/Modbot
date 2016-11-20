@@ -1,7 +1,7 @@
 import discord
 from components import config, pluginmanager, abstracts
 import asyncio
-from threading import Thread
+from threading import Thread, Lock
 
 defaults = {"Discord": {
     "Token": ""}};
@@ -9,7 +9,15 @@ defaults = {"Discord": {
 class Plugin(abstracts.Plugin):
     
     def __init__(self):
-        Connector()
+        self.connector = Connector()
+        
+    def unload(self):
+        asyncio.run_coroutine_threadsafe(self.connector.bot.logout(), self.connector.loop).result()
+        self.connector.loop.stop()
+        self.connector.lock.acquire()
+        self.connector.lock.release()
+        self.connector.loop.close()
+        del self.connector
 
 class Connector(Thread):
     
@@ -37,4 +45,9 @@ class Connector(Thread):
         self.loop.create_task(self.bot.start(token))
         rec = {"BOT":self.bot,"LOOP":self.loop}
         pluginmanager.addresource("DSC", rec)
-        self.loop.run_forever()
+        self.lock = Lock()
+        with self.lock:
+            self.loop.run_forever()
+        
+        
+        

@@ -1,9 +1,8 @@
 from components import abstracts, pluginmanager, config
-import asyncio
 from time import clock
-import threading, pickle
+import threading, pickle, asyncio, discord
+from threading import Lock, Thread
 from math import floor
-import discord
 
 defaults = {"Chat": {"Channel": ""}}
 cachename = "data/days.cache"
@@ -11,7 +10,7 @@ cfg = config.load("chatanalytics", defaults)
 channel = cfg['Chat']['Channel'].lstrip('#')
 
 
-class Checker(threading.Thread):
+class Checker(Thread):
     
     def __init__(self, uname):
         self.uname = uname
@@ -80,10 +79,18 @@ class Plugin(abstracts.Plugin):
     def load(self):
         self.counter = [0,0,0,0]
         self.running = True
-        self.clock = threading.Lock()
-        bot = pluginmanager.resources["DSC"]["BOT"]
-        loop = pluginmanager.resources["DSC"]["LOOP"]
-        asyncio.run_coroutine_threadsafe(self.trackloop(bot), loop)
+        self.clock = Lock()
+        self.radarlock = Lock()
+        self.radarthread = Thread(target=self.trackloop, name="Radar")
+        self.radarthread.start()
+    
+    def unload(self):
+        self.running = False
+        try:
+            self.radarlock.release()
+        except:
+            pass
+        self.radarthread.join()
     
     def handlers(self):
         return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
@@ -91,7 +98,7 @@ class Plugin(abstracts.Plugin):
                 abstracts.Handler('DSC:COMMAND:?GETID', self, self.getid),
                 abstracts.Handler('DSC:COMMAND:?FOLLOWAGE', self, self.getfollowage),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
-    
+        
     def nooblist(self, message=None, **kw):
         bot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
@@ -135,12 +142,17 @@ class Plugin(abstracts.Plugin):
         with self.clock:
             self.counter=[x+1 for x in self.counter]
             
-    async def trackloop(self, bot):
-        await bot.wait_until_ready()
-        while True:
+    def trackloop(self):
+        while self.running:
             for x in range(0,4):
-                with self.clock:
-                    count = self.counter[x]
-                    self.counter[x] = 0
-                await bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%count))
-                await asyncio.sleep(15)
+                if self.running:
+                    self.radarlock.acquire()
+                    with self.clock:
+                        count = self.counter[x]
+                        self.counter[x] = 0
+                    bot = pluginmanager.resources["DSC"]["BOT"]
+                    loop = pluginmanager.resources["DSC"]["LOOP"]
+                    asyncio.run_coroutine_threadsafe(bot.change_presence(game=discord.Game(name="Chat Speed: %d mpm"%count)), loop)
+                    pluginmanager.pool.interuptableSleep(15, self.radarlock, locked=True)
+                else:
+                    break

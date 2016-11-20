@@ -46,10 +46,41 @@ def registerPlugin(mod, name):
         print(name + " has errors on loading! "  + str(e))
         traceback.print_exc()
         
+def unloadPlugin(name):
+    if name in plugins:
+        plug = plugins.pop(name)
+        for event in handlers:
+            for pri in handlers[event]:
+                handlers[event][pri]=list(filter((lambda x: x.plugin is not plug),handlers[event][pri]))
+        cleanHandlers()
+        mod = mods.pop(plug)
+        plug.unload()
+        del plug
+        return mod
+    return None
+
+def reloadPlugin(name):
+    unloadPlugin(name)
+    loadPlugin(name)
+    plugins[name].load()
+        
 def addHandler(handler):
     if handler.event not in handlers:
         handlers[handler.event]={0:[],1:[],2:[],3:[],4:[]}
     handlers[handler.event][handler.priority].append(handler)
+    
+def cleanHandlers():
+    empty = []
+    for event in handlers:
+        e = True
+        for pri in handlers[event]:
+            if len(handlers[event][pri]) != 0:
+                e = False
+                break
+        if e:
+            empty.append(event)
+    for event in empty:
+        handlers.pop(event)
     
 def runEvent(event, *args, **kargs):
     pool.add_task(eventtask, event, args, kargs)
