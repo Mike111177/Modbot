@@ -2,7 +2,6 @@ from components import abstracts, pluginmanager, config
 import asyncio
 from time import clock
 import threading, pickle
-from datetime import timedelta
 from math import floor
 import discord
 

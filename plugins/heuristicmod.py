@@ -11,11 +11,18 @@ cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
 nbotpstr = '[a-zA-Z0-9]{1,25}\s->\s(?P<Name>[a-zA-Z0-9]{1,25})\shas\sbeen\sgranted\spermission\sto\spost\sa\slink\sfor\s60\sseconds\.'
+regflink = re.compile("@LINK@")
 regperm = re.compile(nbotpstr)
 regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
 
 permitcache = {}
+
+def containsFailedLink(message):
+    if regflink.search(message):
+        return True
+    else:
+        return False
 
 def containsLink(message):
     links = reglink.findall(message)
@@ -52,7 +59,7 @@ def isSpamBot(name, message, cid):
     if name.lower() in permitcache and clock()-permitcache[name.lower()]<300:
         links = False
     else:
-        links = containsLink(message)
+        links = containsLink(message) or containsFailedLink(message)
         
         
     addr = containsSpecial(message)
