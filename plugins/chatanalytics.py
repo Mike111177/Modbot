@@ -116,7 +116,12 @@ class Plugin(abstracts.Plugin):
             bot = pluginmanager.resources["DSC"]["BOT"]
             loop = pluginmanager.resources["DSC"]["LOOP"]
             asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
-            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(formattime(floor(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()))))), loop)
+            tseconds = pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()
+            if tseconds:
+                tdelta = formattime(floor(tseconds))
+                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%tdelta), loop)
+            else:
+                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'User %s does not exist'%args[0]), loop)
             
     def getfollowage(self, message=None, args=None, **kw):
         if len(args)>0:
@@ -136,7 +141,7 @@ class Plugin(abstracts.Plugin):
             bot = pluginmanager.resources["DSC"]["BOT"]
             loop = pluginmanager.resources["DSC"]["LOOP"]
             asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
-            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserID()))), loop)
+            asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%(str(pluginmanager.plugins['twitchapi'].getUser(name=args[0].lower()).getUserID()))), loop)
             
     def chatcount(self, **kw):
         with self.clock:

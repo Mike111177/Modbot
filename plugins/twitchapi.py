@@ -119,7 +119,11 @@ class TwitchUser(object):
             return self.userid
         
     def getUserAge(self):
-        return (datetime.now(tz=timezone.utc)-self.getACD()).total_seconds()
+        acd = self.getACD()
+        if acd:
+            return (datetime.now(tz=timezone.utc)-acd).total_seconds()
+        else:
+            return None
     
     def getFollowDate(self, channel):
         data = getFollowData(self.getUserID(), channel.getUserID())
