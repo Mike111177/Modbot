@@ -94,8 +94,8 @@ class Plugin(abstracts.Plugin):
     
     def handlers(self):
         return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
-                abstracts.Handler('DSC:COMMAND:?GETAGE', self, self.getage),
-                abstracts.Handler('DSC:COMMAND:?GETID', self, self.getid),
+                abstracts.Handler('DSC:COMMAND:?USERAGE', self, self.getage),
+                abstracts.Handler('DSC:COMMAND:?USERID', self, self.getid),
                 abstracts.Handler('DSC:COMMAND:?FOLLOWAGE', self, self.getfollowage),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
         
