@@ -1,5 +1,5 @@
-from components import abstracts, pluginmanager
 import asyncio
+from components import abstracts, pluginmanager
 
 
 class Plugin(abstracts.Plugin):

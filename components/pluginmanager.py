@@ -1,8 +1,7 @@
-import os, sys
+import os, sys, traceback
 from imp import reload
 from components import abstracts
 from lib import threadpool
-import traceback
 
 plugins = {}
 mods = {}

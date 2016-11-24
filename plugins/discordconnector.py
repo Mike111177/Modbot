@@ -1,6 +1,5 @@
-import discord
+import discord, asyncio
 from components import config, pluginmanager, abstracts
-import asyncio
 from threading import Thread, Lock
 
 defaults = {"Discord": {

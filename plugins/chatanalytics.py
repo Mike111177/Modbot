@@ -1,6 +1,6 @@
+import threading, pickle, asyncio, discord
 from components import abstracts, pluginmanager, config
 from time import clock
-import threading, pickle, asyncio, discord
 from threading import Lock, Thread
 from math import floor
 

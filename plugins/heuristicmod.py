@@ -1,11 +1,10 @@
+import traceback, asyncio, re
 from components import abstracts, pluginmanager, config
 from math import floor
 from datetime import timedelta, datetime
-import traceback, asyncio, re
 from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock
-import pprint
 
 defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}}
 cfg = config.load("heuristicmod", defaults)
@@ -122,5 +121,3 @@ class Plugin(abstracts.Plugin):
             if m.author == disbot.user:
                 counter += 1
         await disbot.send_message(channel, 'There have been %d automated bans in the past %s hour(s).'%(counter, dtime))
-            
-             

@@ -1,8 +1,7 @@
+import json, traceback
 from components import abstracts, config
-import json
 from urllib import request
 from datetime import datetime, timezone
-import traceback
 
 defaults = {"Twitch": {"Client-ID": ""}}
 cfg = config.load("twitchapi", defaults)
@@ -16,13 +15,12 @@ def doubleJSONRequestTry(url, headers=None):
     try:
         req = request.Request(url, headers=headers)
         return json.loads(request.urlopen(req).read().decode())
-    except Exception as e:
-        print(e)
+    except:
         try:
             req = request.Request(url,headers=headers)
             return json.loads(request.urlopen(req).read().decode())
-        except Exception as e:
-            raise e
+        except:
+            return None
 
 def getUserData(user):
     try:
@@ -33,7 +31,6 @@ def getUserData(user):
         else:
             return None
     except:
-        traceback.print_exc()
         return None
         
 def getChannelData(channel):

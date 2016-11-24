@@ -1,10 +1,6 @@
-import irc3
+import irc3, websocket, json, time, asyncio
 from components import config, pluginmanager, abstracts
-import asyncio
 from threading import Thread, Lock
-import websocket
-import json
-import time
 
 defaults = {"Twitch": {"Username": "", "OauthPass": "", "Channel": "","Channel-ID": "", "User-ID": "", "Client-ID": ""}}
 cfg = config.load("twitch", defaults)["Twitch"]

@@ -1,7 +1,6 @@
+import asyncio, pprint, traceback
 from components import abstracts, pluginmanager, config
-import asyncio
-import pprint
-import traceback
+
 
 defaults = {"Administration": {"Admin": ""}}
 cfg = config.load("discordplm", defaults)

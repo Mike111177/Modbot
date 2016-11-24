@@ -1,11 +1,11 @@
 """
 Author Mike
 """
-
+import traceback
 from queue import Queue
 from threading import Thread, Lock
 from time import sleep
-import traceback
+
 
 global num
 num = 0;

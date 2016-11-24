@@ -1,6 +1,5 @@
+import asyncio, pprint
 from components import abstracts, pluginmanager
-import asyncio
-import pprint
 
 
 class Plugin(abstracts.Plugin):

@@ -1,7 +1,5 @@
+import asyncio, urllib
 from components import abstracts, pluginmanager
-import asyncio
-import urllib
-
 
 class Plugin(abstracts.Plugin):
     

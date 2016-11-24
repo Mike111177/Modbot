@@ -1,5 +1,5 @@
-from components import abstracts, pluginmanager
 import asyncio
+from components import abstracts, pluginmanager
 
 '''#The plugin manager will only load the plugin if the class name is Plugin, and it extends abstract.Plugin'''
 class Plugin(abstracts.Plugin): 
