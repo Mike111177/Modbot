@@ -5,8 +5,9 @@ import traceback, asyncio, re
 from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock
+import pprint
 
-defaults = {"Reporting": {"Channel": ""}, "SpecialCase": {"Regex": ""}}
+defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}}
 cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
@@ -73,7 +74,16 @@ class Plugin(abstracts.Plugin):
     
     def handlers(self):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
-                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt)]
+                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt),
+                abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout)]
+    
+    def timeout(self, created_by=None, args=None, **kw):
+        bot = pluginmanager.resources["DSC"]["BOT"]
+        loop = pluginmanager.resources["DSC"]["LOOP"]
+        message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
+        if len(args)>2:
+            message = message + " Reason: `%s`"%args[2].replace('`','\'')
+        asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
@@ -87,7 +97,7 @@ class Plugin(abstracts.Plugin):
                 if not special:
                     bot.privmsg(target, '.w %s Hello %s, you have been banned from this chat by our new experimental heuristics system. If you believe that you were wrongfully banned and would like to appeal please whisper one of the chat moderators. We are sorry for the inconvienence.'%(nick, nick))
                     bot.privmsg(target, '.w %s Do not reply to this whisper.'%nick)
-                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['Channel'])),'%s: "%s" (Age: %s) (Special: %s)'%(nick,data,str(timedelta(seconds=floor(age))),str(special))), loop)
+                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) (Special: %s)'%(nick,data,str(timedelta(seconds=floor(age))),str(special))), loop)
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
@@ -108,14 +118,9 @@ class Plugin(abstracts.Plugin):
                       
     async def bancount(self, disbot, channel, dtime):
         counter = 0
-        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['Channel'])), limit=500, after=(datetime.utcnow()-timedelta(hours=dtime))):
+        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])), limit=500, after=(datetime.utcnow()-timedelta(hours=dtime))):
             if m.author == disbot.user:
                 counter += 1
         await disbot.send_message(channel, 'There have been %d automated bans in the past %s hour(s).'%(counter, dtime))
             
-            
-            
-            
-            
-            
-            
+             

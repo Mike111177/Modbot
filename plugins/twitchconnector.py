@@ -1,9 +1,15 @@
 import irc3
 from components import config, pluginmanager, abstracts
 import asyncio
-from threading import Thread
+from threading import Thread, Lock
+import websocket
+import json
+import time
 
-defaults = {"Twitch": {"Username": "", "OauthPass": "", "Channel": "", "Client-ID": ""}}
+defaults = {"Twitch": {"Username": "", "OauthPass": "", "Channel": "","Channel-ID": "", "User-ID": "", "Client-ID": ""}}
+cfg = config.load("twitch", defaults)["Twitch"]
+notice = irc3.rfc.raw.new('NOTICE', r'^(@(?P<tags>\S+) )?:(?P<mask>\S+) (?P<event>(NOTICE|HOSTTARGET|CLEARCHAT|USERSTATE|RECONNECT|ROOMSTATE|USERNOTICE)) (?P<channel>\S+)(\s+:(?P<data>.*)|$)')
+modtopic = "chat_moderator_actions.%s.%s"%(cfg['User-ID'],cfg['Channel-ID'])
 
 @irc3.plugin
 class IRCPlugin(object):
@@ -13,6 +19,9 @@ class IRCPlugin(object):
     @irc3.event(irc3.rfc.CONNECTED)
     async def connected(self, **kw):
         await self.bot.send_line("CAP REQ :twitch.tv/tags")
+        await self.bot.send_line("CAP REQ :twitch.tv/membership")
+        await self.bot.send_line("CAP REQ :twitch.tv/commands")
+        self.bot.join(cfg['Channel'])
         pluginmanager.runEvent("TWITCH:CONNECTED")
     
     
@@ -22,30 +31,79 @@ class IRCPlugin(object):
             kw['tags'] = irc3.tags.decode(tags)
         kw['nick'] = mask.nick
         pluginmanager.runEvent("TWITCH:MSG", **kw)
-
+        
+    @irc3.event(notice)
+    async def rnotice(self, event=None, tags=None, **kw):
+        kw['notice'] = event
+        if tags:
+            kw['tags'] = irc3.tags.decode(tags)
+        pluginmanager.runEvent("TWITCH:NOTICE", **kw)
 
 class Plugin(abstracts.Plugin):
     
     def __init__(self):
-        Connector()
+        initlock = Lock()
+        initlock.acquire()
+        self.connector = IRCConnector(initlock)
+        with initlock:
+            self.bot = self.connector.bot
+            self.loop = self.connector.loop
+        self.pubsub = PubSubConnector()
+        self.pubsub.start()
 
-class Connector(Thread):
+class IRCConnector(Thread):
     
-    def __init__(self):
+    def __init__(self, initlock):
         Thread.__init__(self, name="TwitchIRC_Async_Connector")
+        self.initlock = initlock
         self.start()
 
     def run(self):
         self.loop = asyncio.new_event_loop()
-        self.cfg = config.load("twitch", defaults)["Twitch"]
         self.setup = dict(
-            autojoins=[self.cfg["Channel"]],
+            autojoins=[],
             host='irc.twitch.tv', port=6667,
-            username=self.cfg["Username"], password=self.cfg["OauthPass"], nick=self.cfg["Username"],
+            username=cfg["Username"], password=cfg["OauthPass"], nick=cfg["Username"],
             ssl=False,
-            includes=[__name__],
+            includes=[__name__,'irc3.plugins.userlist'],
             loop=self.loop)
         self.bot = irc3.IrcBot(**self.setup)
-        rec = {"BOT":self.bot,"LOOP":self.loop,"CLI-ID":self.cfg["Client-ID"]}
+        rec = {"BOT":self.bot,"LOOP":self.loop,"CLI-ID":cfg["Client-ID"]}
         pluginmanager.addresource("TWITCH", rec)
+        self.initlock.release()
         self.bot.run(forever=True)
+
+class PubSubConnector(Thread):
+    
+        def __init__(self):
+            Thread.__init__(self, name="TwitchPubSub_Syncronious_Connector")
+            Thread(target=self.pingLoop, name="TwitchPubSub_PingLoop").start()
+            
+        def pingLoop(self):
+            while True:
+                time.sleep(270)
+                self.send({'type':'PING'})
+            
+        def run(self):
+                self.ws = websocket.WebSocketApp("wss://pubsub-edge.twitch.tv",
+                                on_message = self.on_message)
+                self.ws.on_open = self.on_open
+                self.ws.run_forever()
+        
+        def send(self, ddict):
+            self.ws.send(json.dumps(ddict))      
+        
+        def on_open(self, args):
+            self.send({"type":"LISTEN",
+                       "data": {
+                           "topics": [modtopic],
+                           "auth_token": cfg["Oauth"]}})
+            
+        def on_message(self, ws, data):
+            ind = json.loads(data)
+            if 'data' in ind:
+                if 'topic' in ind['data']:
+                    if ind['data']['topic']==modtopic:
+                        actdict = json.loads(ind['data']['message'])
+                        pluginmanager.runEvent("TWITCH:MOD:%s"%actdict['data']['moderation_action'].upper(), **actdict['data'])
+                        pluginmanager.runEvent("TWITCH:MOD", **actdict['data'])
