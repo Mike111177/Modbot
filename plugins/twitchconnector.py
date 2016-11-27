@@ -76,15 +76,18 @@ class PubSubConnector(Thread):
             Thread(target=self.pingLoop, name="TwitchPubSub_PingLoop").start()
             
         def pingLoop(self):
-            while True:
-                time.sleep(270)
+            self.running = True
+            time.sleep(5)
+            while self.running:
                 self.send({'type':'PING'})
+                time.sleep(270)
             
         def run(self):
-                self.ws = websocket.WebSocketApp("wss://pubsub-edge.twitch.tv",
-                                on_message = self.on_message)
-                self.ws.on_open = self.on_open
-                self.ws.run_forever()
+            self.ws = websocket.WebSocketApp("wss://pubsub-edge.twitch.tv",
+                            on_message = self.on_message,
+                            on_open=self.on_open,
+                            on_close=self.run)
+            self.ws.run_forever()
         
         def send(self, ddict):
             self.ws.send(json.dumps(ddict))      
@@ -94,6 +97,7 @@ class PubSubConnector(Thread):
                        "data": {
                            "topics": [modtopic],
                            "auth_token": cfg["Oauth"]}})
+            print('Connected to Twitch PubSub')
             
         def on_message(self, ws, data):
             ind = json.loads(data)

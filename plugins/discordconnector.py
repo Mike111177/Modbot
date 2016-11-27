@@ -25,10 +25,7 @@ class Connector(Thread):
         self.start()
     
     async def on_ready(self):
-        print('Logged in as')
-        print(self.bot.user.name)
-        print(self.bot.user.id)
-        print('------')
+        print('Logged into discord as: %s (%s)'%(self.bot.user.name,self.bot.user.id))
         pluginmanager.runEvent("DSC:READY")
     
     async def on_message(self, message):
