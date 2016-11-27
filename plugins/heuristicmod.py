@@ -5,6 +5,7 @@ from datetime import timedelta, datetime
 from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock
+from threading import Lock
 
 defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}}
 cfg = config.load("heuristicmod", defaults)
@@ -71,6 +72,11 @@ def isSpamBot(name, message, cid):
 
 class Plugin(abstracts.Plugin):
     
+    def __init__(self):
+        self.msglock = Lock()
+        self.msglog = {}
+        self.refreshtime = clock()
+    
     def handlers(self):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
                 abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt),
@@ -82,6 +88,9 @@ class Plugin(abstracts.Plugin):
         message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
         if len(args)>2:
             message = message + " Reason: `%s`"%args[2].replace('`','\'')
+        with self.msglock:
+            if args[0] in self.msglog:
+                message = message + " ```%s: %s```"%(args[0],self.msglog[args[0]].replace('`','\''))
         asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
@@ -100,7 +109,11 @@ class Plugin(abstracts.Plugin):
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
-            return
+        with self.msglock:
+            if clock()-self.refreshtime>43200:
+                self.msglog = {}
+            self.msglog[nick] = data
+        
         
     def bancnt(self, message=None, args=None, **kw):
         disbot = pluginmanager.resources["DSC"]["BOT"]
