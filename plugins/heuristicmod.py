@@ -4,7 +4,7 @@ from math import floor
 from datetime import timedelta, datetime
 from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
-from time import clock
+from time import clock, sleep
 from threading import Lock
 
 defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}}
@@ -83,6 +83,7 @@ class Plugin(abstracts.Plugin):
                 abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout)]
     
     def timeout(self, created_by=None, args=None, **kw):
+        sleep(.5) #10 Threads in the pool, not concerned. Go away with your best practices.
         bot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
         message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
