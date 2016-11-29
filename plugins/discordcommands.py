@@ -6,7 +6,8 @@ class Plugin(abstracts.Plugin):
     
     def handlers(self):
         return [abstracts.Handler("DSC:MSG", self, self.proc, abstracts.Handler.PRIORITY_HIGH),
-                abstracts.Handler("DSC:COMMAND:?COMMANDS", self, self.commands)]
+                abstracts.Handler("DSC:COMMAND:?COMMANDS", self, self.commands),
+                abstracts.Handler("DSC:COMMAND:?HELP", self, self.helpcommand)]
     
     def proc(self, message):
         if message.content.startswith('?') and message.author is not pluginmanager.resources["DSC"]['BOT'].user:
@@ -23,4 +24,7 @@ class Plugin(abstracts.Plugin):
         for x in pluginmanager.handlers:
             if x.startswith('DSC:COMMAND:'):
                 cmds.append(x.split(':')[-1])
-        asyncio.run_coroutine_threadsafe(bot.send_message(message.channel, "```\n%s\n```"%pprint.pformat(cmds, indent=2, width=20)), loop)  
+        asyncio.run_coroutine_threadsafe(bot.send_message(message.channel, "```\n%s\n```"%pprint.pformat(cmds, indent=2, width=20)), loop)
+        
+    def helpcommand(self, message=None, args=None, **kw):
+        pass
