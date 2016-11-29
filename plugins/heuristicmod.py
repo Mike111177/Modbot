@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from time import clock, sleep
 from threading import Lock
 
-defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}}
+defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}, "Timeout_Logging":{"Ignore_Bots":"True"}}
 cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
@@ -83,16 +83,17 @@ class Plugin(abstracts.Plugin):
                 abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout)]
     
     def timeout(self, created_by=None, args=None, **kw):
-        sleep(.5) #10 Threads in the pool, not concerned. Go away with your best practices.
-        bot = pluginmanager.resources["DSC"]["BOT"]
-        loop = pluginmanager.resources["DSC"]["LOOP"]
-        message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
-        if len(args)>2:
-            message = message + " Reason: `%s`"%args[2].replace('`','\'')
-        with self.msglock:
-            if args[0] in self.msglog:
-                message = message + " ```%s: %s```"%(args[0],self.msglog[args[0]].replace('`','\''))
-        asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
+        if not (created_by.lower()=='nightbot' and cfg['Timeout_Logging']['Ignore_Bots'].lower()=='true'):
+            sleep(.5) #10 Threads in the pool, not concerned. Go away with your best practices.
+            bot = pluginmanager.resources["DSC"]["BOT"]
+            loop = pluginmanager.resources["DSC"]["LOOP"]
+            message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
+            if len(args)>2:
+                message = message + " Reason: `%s`"%args[2].replace('`','\'')
+            with self.msglock:
+                if args[0] in self.msglog:
+                    message = message + " ```%s: %s```"%(args[0],self.msglog[args[0]].replace('`','\''))
+            asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
