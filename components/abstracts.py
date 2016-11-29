@@ -22,11 +22,13 @@ class Handler(object):
     PRIORITY_LOW = 3
     PRIORITY_MIN = 4
     
-    def __init__(self, event, plugin, function, priority=PRIORITY_MED):
+    def __init__(self, event, plugin, function, priority=PRIORITY_MED, **kw):
         self.priority = priority
         self.event = event
         self.plugin = plugin
         self.function = function
+        for key in kw:
+            setattr(self, key, kw[key])
         
     def __repr__(self):
         return self.__str__()
