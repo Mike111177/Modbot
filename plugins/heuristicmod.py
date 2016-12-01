@@ -98,6 +98,7 @@ class Plugin(abstracts.Plugin):
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
         try:
+            t = clock()
             spam, special, age = isSpamBot(nick, data, cid)
             if spam:
                 bot = pluginmanager.resources["TWITCH"]["BOT"]
@@ -107,7 +108,7 @@ class Plugin(abstracts.Plugin):
                 if not special:
                     bot.privmsg(target, '.w %s Hello %s, you have been banned from this chat by our new experimental heuristics system. If you believe that you were wrongfully banned and would like to appeal please whisper one of the chat moderators. We are sorry for the inconvienence.'%(nick, nick))
                     bot.privmsg(target, '.w %s Do not reply to this whisper.'%nick)
-                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) (Special: %s)'%(nick,data,str(timedelta(seconds=floor(age))),str(special))), loop)
+                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) (Special: %s) [%fs]'%(nick,data,str(timedelta(seconds=floor(age))),str(special),clock()-t)), loop)
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
