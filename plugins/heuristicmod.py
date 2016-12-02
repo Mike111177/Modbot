@@ -1,4 +1,4 @@
-import traceback, asyncio, re
+import traceback, asyncio, re, argparse
 from components import abstracts, pluginmanager, config
 from math import floor
 from datetime import timedelta, datetime
@@ -16,6 +16,11 @@ regflink = re.compile("@LINK@")
 regperm = re.compile(nbotpstr)
 regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
+
+bncntparse = argparse.ArgumentParser(description='Count automated bot bans.', add_help=False, prog='?bancount')
+bncntparse.add_argument('hours', type=float, default=float(1),
+                        help='Hours back to count. (default=1)',
+                        nargs='?')
 
 permitcache = {}
 
@@ -55,7 +60,7 @@ def isSpamBot(name, message, cid):
         me = regperm.match(message)
         if me:
             permitcache[me.group('Name').lower()] = clock()
-        return False, False, None
+        return False, None
     
     if name.lower() in permitcache and clock()-permitcache[name.lower()]<300:
         links = False
@@ -67,8 +72,8 @@ def isSpamBot(name, message, cid):
     if links or addr:
         noob, age = isNoob(name, cid)
         if noob:
-            return True, addr, age
-    return False, False, None
+            return True, age
+    return False, None
 
 class Plugin(abstracts.Plugin):
     
@@ -79,7 +84,7 @@ class Plugin(abstracts.Plugin):
     
     def handlers(self):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
-                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt),
+                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt, parse=bncntparse),
                 abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout)]
     
     def timeout(self, created_by=None, args=None, **kw):
@@ -99,16 +104,13 @@ class Plugin(abstracts.Plugin):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
         try:
             t = clock()
-            spam, special, age = isSpamBot(nick, data, cid)
+            spam, age = isSpamBot(nick, data, cid)
             if spam:
                 bot = pluginmanager.resources["TWITCH"]["BOT"]
                 disbot = pluginmanager.resources["DSC"]["BOT"]
                 loop = pluginmanager.resources["DSC"]["LOOP"]
                 bot.privmsg(target, '.ban %s'%nick)
-                if not special:
-                    bot.privmsg(target, '.w %s Hello %s, you have been banned from this chat by our new experimental heuristics system. If you believe that you were wrongfully banned and would like to appeal please whisper one of the chat moderators. We are sorry for the inconvienence.'%(nick, nick))
-                    bot.privmsg(target, '.w %s Do not reply to this whisper.'%nick)
-                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) (Special: %s) [%fs]'%(nick,data,str(timedelta(seconds=floor(age))),str(special),clock()-t)), loop)
+                asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) [%fs]'%(nick,data,str(timedelta(seconds=floor(age))),clock()-t)), loop)
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
@@ -118,17 +120,11 @@ class Plugin(abstracts.Plugin):
             self.msglog[nick] = data
         
         
-    def bancnt(self, message=None, args=None, **kw):
+    def bancnt(self, message=None, args=None, pargs=None, **kw):
         disbot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
         asyncio.run_coroutine_threadsafe(disbot.send_typing(message.channel), loop)
-        dtime = 1
-        if len(args)>0:
-            try:
-                dtime = float(args[0])
-            except:
-                dtime = 1
-        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, dtime),loop)
+        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, pargs['hours']),loop)
                 
                       
     async def bancount(self, disbot, channel, dtime):
