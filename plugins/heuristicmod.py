@@ -18,9 +18,14 @@ regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
 
 bncntparse = argparse.ArgumentParser(description='Count automated bot bans.', add_help=False, prog='?bancount')
-bncntparse.add_argument('hours', type=float, default=float(1),
-                        help='Hours back to count. (default=1)',
-                        nargs='?')
+bncntparse.add_argument('time', type=float, default=float(1), help='Time back to count. (default is 1)', nargs='?')
+group = bncntparse.add_mutually_exclusive_group()
+group.add_argument('-s', action='store_true', help='Set time multiplier to seconds.')
+group.add_argument('-m', action='store_true', help='Set time multiplier to minutes.')
+group.add_argument('-h', action='store_true', help='Set time multiplier to hours (default).')
+group.add_argument('-d', action='store_true', help='Set time multiplier to days.')
+group.add_argument('-w', action='store_true', help='Set time multiplier to weeks.')
+
 
 permitcache = {}
 
@@ -124,12 +129,26 @@ class Plugin(abstracts.Plugin):
         disbot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
         asyncio.run_coroutine_threadsafe(disbot.send_typing(message.channel), loop)
-        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, pargs['hours']),loop)
-                
-                      
-    async def bancount(self, disbot, channel, dtime):
+        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, pargs),loop)
+                     
+    async def bancount(self, disbot, channel, pargs):
         counter = 0
-        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])), limit=500, after=(datetime.utcnow()-timedelta(hours=dtime))):
+        if pargs['s']:
+            mod = 'second'
+            dtime = pargs['time']
+        elif pargs['m']:
+            mod = 'minute'
+            dtime = 60*pargs['time']
+        elif pargs['d']:
+            mod = 'day'
+            dtime = 86400*pargs['time']
+        elif pargs['w']:
+            mod = 'week'
+            dtime = 604800*pargs['time']
+        else:
+            mod = 'hour'
+            dtime = 3600*pargs['time']
+        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])), limit=500, after=(datetime.utcnow()-timedelta(seconds=dtime))):
             if m.author == disbot.user:
                 counter += 1
-        await disbot.send_message(channel, 'There have been %d automated bans in the past %s hour(s).'%(counter, dtime))
+        await disbot.send_message(channel, 'There have been %d automated bans in the past %s %s(s).'%(counter, pargs['time'], mod))
