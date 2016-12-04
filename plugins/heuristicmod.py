@@ -143,7 +143,7 @@ class Plugin(abstracts.Plugin):
                     asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) [%fs]'%(nick,data,str(timedelta(seconds=floor(age))),clock()-t)), loop)
                 elif nick.lower() in revokelist and containsLink(data):
                     bot = pluginmanager.resources["TWITCH"]["BOT"]
-                    bot.privmsg(target, '.timeout %s 60'%nick)                
+                    bot.privmsg(target, '.timeout %s 60 Link privileges revoked'%nick)                
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
