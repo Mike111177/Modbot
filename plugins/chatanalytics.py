@@ -93,7 +93,7 @@ class Plugin(abstracts.Plugin):
         self.radarthread.join()
     
     def handlers(self):
-        return [abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
+        return [#abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
                 abstracts.Handler('DSC:COMMAND:?USERAGE', self, self.getage),
                 abstracts.Handler('DSC:COMMAND:?USERID', self, self.getid),
                 abstracts.Handler('DSC:COMMAND:?FOLLOWAGE', self, self.getfollowage),
