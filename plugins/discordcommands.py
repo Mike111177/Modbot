@@ -42,7 +42,7 @@ class Plugin(abstracts.Plugin):
         command = command.upper()
         for x in pluginmanager.handlers:
             if x.startswith('DSC:COMMAND:') and x.split(':')[-1]==command:
-                for pri in pluginmanager.handlers[x]:
+                for pri in pluginmanager.prio:
                     for handler in pluginmanager.handlers[x][pri]:
                         return handler
         return None

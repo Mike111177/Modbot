@@ -65,7 +65,7 @@ def reloadPlugin(name):
         
 def addHandler(handler):
     if handler.event not in handlers:
-        handlers[handler.event]={0:[],1:[],2:[],3:[],4:[]}
+        handlers[handler.event]={0:[],1:[],2:[],3:[],4:[],5:[]}
     handlers[handler.event][handler.priority].append(handler)
     
 def cleanHandlers():
@@ -80,7 +80,13 @@ def cleanHandlers():
             empty.append(event)
     for event in empty:
         handlers.pop(event)
-    
+        
+def getHooks(name):
+    if name in handlers:
+        return handlers[name][5]
+    else:
+        return []
+        
 def runEvent(event, *args, **kargs):
     pool.add_task(eventtask, event, args, kargs)
     

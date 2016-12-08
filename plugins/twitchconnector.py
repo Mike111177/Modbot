@@ -46,6 +46,20 @@ class Plugin(abstracts.Plugin):
             self.loop = self.connector.loop
         self.pubsub = PubSubConnector()
         self.pubsub.start()
+        
+    def handlers(self):
+        return [abstracts.Handler("STATUS", self, self.status, priority=abstracts.Handler.PRIORITY_HOOK)]
+    
+    def status(self):
+        if self.pubsub.ws.sock.connected:
+            pubsub='Connected'
+        else:
+            pubsub='Disconnected'
+        if self.bot.protocol.closed:
+            irc='Disconnected'
+        else:
+            irc='Connected'
+        return 'Twitch Connector: IRC(%s), PUBSUB(%s)'%(irc,pubsub)
 
 class IRCConnector(Thread):
     

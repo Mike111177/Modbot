@@ -17,6 +17,16 @@ class Plugin(abstracts.Plugin):
         self.connector.lock.release()
         self.connector.loop.close()
         del self.connector
+        
+    def handlers(self):
+        return [abstracts.Handler("STATUS", self, self.status, priority=abstracts.Handler.PRIORITY_HOOK)]
+    
+    def status(self):
+        if self.connector.bot.is_logged_in:
+            stat = 'Logged in. Servers: %d.'%len(self.connector.bot.servers)
+        else:
+            stat = 'Disconnected.'
+        return 'Discord Connector: %s'%stat
 
 class Connector(Thread):
     

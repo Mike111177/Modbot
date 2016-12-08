@@ -21,6 +21,7 @@ class Handler(object):
     PRIORITY_MED = 2
     PRIORITY_LOW = 3
     PRIORITY_MIN = 4
+    PRIORITY_HOOK = 5
     
     def __init__(self, event, plugin, function, priority=PRIORITY_MED, **kw):
         self.priority = priority
@@ -38,4 +39,7 @@ class Handler(object):
     
     def handle(self, args, kargs):
         return self.function(*args,**kargs)
+    
+    def __call__(self, *args, **kargs):
+        return self.handle(args, kargs)
         
