@@ -11,9 +11,8 @@ defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase"
 cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
-nbotpstr = '[a-zA-Z0-9]{1,25}\s->\s(?P<Name>[a-zA-Z0-9]{1,25})\shas\sbeen\sgranted\spermission\sto\spost\sa\slink\sfor\s60\sseconds\.'
-regflink = re.compile("@LINK@")
-regperm = re.compile(nbotpstr)
+permitstr = '^!permit\s\@?(?P<nick>[^\s]+)'
+regperm = re.compile(permitstr)
 regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
 
@@ -47,13 +46,6 @@ except:
     revokelist = set()
     saveRevokeList()
 
-
-def containsFailedLink(message):
-    if regflink.search(message):
-        return True
-    else:
-        return False
-
 def containsLink(message):
     links = reglink.findall(message)
     result = False
@@ -71,7 +63,7 @@ def containsLink(message):
 
 def isNoob(name, cid):
     age = pluginmanager.plugins['twitchapi'].getUser(name=name).getUserAge()
-    return age<43200, age
+    return age<21600, age
 
 def containsSpecial(message):
     if cfg["SpecialCase"]["Regex"]!='' and regspecial.search(message):
@@ -79,14 +71,6 @@ def containsSpecial(message):
     else:
         return False
     
-def nightCheck(name, message):
-    if name.lower()=='nightbot':
-        me = regperm.match(message)
-        if me:
-            permitcache[me.group('Name').lower()] = clock()
-        return True
-    return False
-
 def permitCheck(name):
     return name.lower() in permitcache and clock()-permitcache[name.lower()]<70
 
@@ -94,7 +78,7 @@ def isSpamBot(name, message, cid):
     if permitCheck(name):
         links = False
     else:
-        links = containsLink(message) or containsFailedLink(message)
+        links = containsLink(message)
         
     addr = containsSpecial(message)
     if links or addr:
@@ -114,7 +98,8 @@ class Plugin(abstracts.Plugin):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
                 abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt, parse=bncntparse),
                 abstracts.Handler('DSC:COMMAND:?REVOKE', self, self.revoke, parse=revokeparse),
-                abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout)]
+                abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout),
+                abstracts.Handler('TWITCH:MOD:TWITCHBOT_REJECTED', self, self.twitchbot_rejected)]
     
     def timeout(self, created_by=None, args=None, **kw):
         if not (created_by.lower()=='nightbot' and cfg['Timeout_Logging']['Ignore_Bots'].lower()=='true'):
@@ -129,19 +114,30 @@ class Plugin(abstracts.Plugin):
                     message = message + " ```%s: %s```"%(args[0],self.msglog[args[0]].replace('`','\''))
             asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
     
+    def twitchbot_rejected(self, msg_id=None, args=None, twitchchannel=None, **kw):
+        if self.ircmsg(nick=args[0], target=twitchchannel, data=args[1]):
+            pluginmanager.plugins['twitchapi'].denyMessage(msg_id)
+    
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
+        result = False
+        if 'tags' in kw and 'mod' in kw['tags'] and kw['tags']['mod']=='1':
+            me = regperm.match(data)
+            if me:
+                permitcache[me.group('nick').lower()] = clock()
+            return False
         try:
-            if not nightCheck(nick, data) and not permitCheck(nick):
-                t = clock()
+            if not permitCheck(nick):
                 spam, age = isSpamBot(nick, data, cid)
                 if spam:
+                    result = True
                     bot = pluginmanager.resources["TWITCH"]["BOT"]
                     disbot = pluginmanager.resources["DSC"]["BOT"]
                     loop = pluginmanager.resources["DSC"]["LOOP"]
                     bot.privmsg(target, '.ban %s'%nick)
-                    asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s) [%fs]'%(nick,data,str(timedelta(seconds=floor(age))),clock()-t)), loop)
+                    asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s)'%(nick,data,str(timedelta(seconds=floor(age))))), loop)
                 elif nick.lower() in revokelist and containsLink(data):
+                    result = True
                     bot = pluginmanager.resources["TWITCH"]["BOT"]
                     bot.privmsg(target, '.timeout %s 60 Link privileges revoked'%nick)                
         except:
@@ -151,6 +147,7 @@ class Plugin(abstracts.Plugin):
             if clock()-self.refreshtime>43200:
                 self.msglog = {}
             self.msglog[nick] = data
+        return result
         
     def bancnt(self, message=None, args=None, pargs=None, **kw):
         disbot = pluginmanager.resources["DSC"]["BOT"]

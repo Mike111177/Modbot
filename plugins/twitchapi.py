@@ -3,9 +3,10 @@ from components import abstracts, config
 from urllib import request
 from datetime import datetime, timezone
 
-defaults = {"Twitch": {"Client-ID": ""}}
+defaults = {"Twitch": {"Client-ID": "", "IRC-OAuth": ""}}
 cfg = config.load("twitchapi", defaults)
 cid = str(cfg["Twitch"]["Client-ID"])
+oauth = str(cfg["Twitch"]["IRC-OAuth"])
 
 VERSION2 = 'application/vnd.twitchtv.v2+json'
 VERSION3 = 'application/vnd.twitchtv.v3+json'
@@ -58,7 +59,13 @@ class Plugin(abstracts.Plugin):
     
     def getChannel(self, **kw):
         return TwitchChannel(**kw)
-        
+    
+    def denyMessage(self, msgid):
+        data = {"msg_id": msgid} 
+        params = json.dumps(data).encode('utf8')
+        req = request.Request('https://api.twitch.tv/kraken/chat/twitchbot/deny', data=params,headers={'content-type': 'application/json','Client-ID': cid,
+                                                                                                        'Accept': VERSION5, 'Authorization': 'OAuth %s'%oauth})
+        request.urlopen(req)
         
 class TwitchUser(object):
     

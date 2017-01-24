@@ -119,5 +119,5 @@ class PubSubConnector(Thread):
                 if 'topic' in ind['data']:
                     if ind['data']['topic']==modtopic:
                         actdict = json.loads(ind['data']['message'])
-                        pluginmanager.runEvent("TWITCH:MOD:%s"%actdict['data']['moderation_action'].upper(), **actdict['data'])
-                        pluginmanager.runEvent("TWITCH:MOD", **actdict['data'])
+                        pluginmanager.runEvent("TWITCH:MOD:%s"%actdict['data']['moderation_action'].upper(), twitchchannel=cfg['Channel'], **actdict['data'])
+                        pluginmanager.runEvent("TWITCH:MOD", twitchchannel=cfg['Channel'], **actdict['data'])
