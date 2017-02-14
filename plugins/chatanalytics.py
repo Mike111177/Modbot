@@ -96,7 +96,6 @@ class Plugin(abstracts.Plugin):
         return [#abstracts.Handler('DSC:COMMAND:?NOOBLIST', self, self.nooblist),
                 abstracts.Handler('DSC:COMMAND:?USERAGE', self, self.getage),
                 abstracts.Handler('DSC:COMMAND:?USERID', self, self.getid),
-                abstracts.Handler('DSC:COMMAND:?FOLLOWAGE', self, self.getfollowage),
                 abstracts.Handler('TWITCH:MSG', self, self.chatcount, priority=abstracts.Handler.PRIORITY_MONITOR)]
         
     def nooblist(self, message=None, **kw):
@@ -119,22 +118,14 @@ class Plugin(abstracts.Plugin):
             tseconds = pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getUserAge()
             if tseconds:
                 tdelta = formattime(floor(tseconds))
-                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%tdelta), loop)
+                fdelta = 'Not Following'
+                chan = pluginmanager.plugins['twitchapi'].getChannel(name=channel)
+                fseconds = pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getFollowAge(chan)
+                if fseconds:
+                    fdelta = 'Followed for %s'%formattime(seconds=floor(fseconds))
+                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'```%s: %s (%s)```'%(args[0], tdelta, fdelta)), loop)
             else:
                 asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'User %s does not exist'%args[0]), loop)
-            
-    def getfollowage(self, message=None, args=None, **kw):
-        if len(args)>0:
-            bot = pluginmanager.resources["DSC"]["BOT"]
-            loop = pluginmanager.resources["DSC"]["LOOP"]
-            asyncio.run_coroutine_threadsafe(bot.send_typing(message.channel), loop)
-            chan = pluginmanager.plugins['twitchapi'].getChannel(name=channel)
-            tseconds = pluginmanager.plugins['twitchapi'].getUser(name=args[0]).getFollowAge(chan)
-            if tseconds:
-                tdelta = formattime(seconds=floor(tseconds))
-                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s'%tdelta), loop)
-            else:
-                asyncio.run_coroutine_threadsafe(bot.send_message(message.channel,'%s is not following %s'%(args[0],channel)), loop)
             
     def getid(self, message=None, args=None, **kw):
         if len(args)>0:
