@@ -60,6 +60,9 @@ class Plugin(abstracts.Plugin):
         else:
             irc='Connected'
         return 'Twitch Connector: IRC(%s), PUBSUB(%s)'%(irc,pubsub)
+    
+    def nick(self):
+        return cfg["Username"]
 
 class IRCConnector(Thread):
     

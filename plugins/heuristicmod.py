@@ -6,8 +6,9 @@ from socket import gethostbyname_ex as checkhost
 from urllib.parse import urlparse
 from time import clock, sleep
 from threading import Lock
+from discord import MessageType
 
-defaults = {"Reporting": {"AutoChannel": "", "ManualChannel": ""}, "SpecialCase": {"Regex": ""}, "Timeout_Logging":{"Ignore_Bots":"True"}}
+defaults = {"Reporting": {"Channel": ""}, "SpecialCase": {"Regex": ""}, "Timeout_Logging":{"Ignore_Bots":"True"}}
 cfg = config.load("heuristicmod", defaults)
 
 rlinkstring = '(?:(?:[a-z0-9$-_@.&+]{1,256})\.)+[a-z]{2,6}'
@@ -15,15 +16,6 @@ permitstr = '^!permit\s\@?(?P<nick>[^\s]+)'
 regperm = re.compile(permitstr)
 regspecial = re.compile(str(cfg["SpecialCase"]["Regex"]), re.IGNORECASE)
 reglink = re.compile(rlinkstring, re.IGNORECASE)
-
-bncntparse = argparse.ArgumentParser(description='Count automated bot bans.', add_help=False, prog='?bancount')
-bncntparse.add_argument('time', type=float, default=float(1), help='Time back to count. (default is 1)', nargs='?')
-tgroup = bncntparse.add_mutually_exclusive_group()
-tgroup.add_argument('-s', action='store_true', help='Set time multiplier to seconds.')
-tgroup.add_argument('-m', action='store_true', help='Set time multiplier to minutes.')
-tgroup.add_argument('-h', action='store_true', help='Set time multiplier to hours (default).')
-tgroup.add_argument('-d', action='store_true', help='Set time multiplier to days.')
-tgroup.add_argument('-w', action='store_true', help='Set time multiplier to weeks.')
 
 permitcache = {}
 
@@ -93,26 +85,60 @@ class Plugin(abstracts.Plugin):
         self.msglock = Lock()
         self.msglog = {}
         self.refreshtime = clock()
+        self.rejectmsg = {}
+        self.rejectmsglock = Lock()
+        self.pinlock = Lock()
+        self.pins = {}
     
     def handlers(self):
         return [abstracts.Handler('TWITCH:MSG', self, self.ircmsg),
-                abstracts.Handler('DSC:COMMAND:?BANCOUNT', self, self.bancnt, parse=bncntparse),
                 abstracts.Handler('DSC:COMMAND:?REVOKE', self, self.revoke, parse=revokeparse),
-                abstracts.Handler('TWITCH:MOD:TIMEOUT', self, self.timeout),
-                abstracts.Handler('TWITCH:MOD:TWITCHBOT_REJECTED', self, self.twitchbot_rejected)]
+                abstracts.Handler('TWITCH:MOD:TWITCHBOT_REJECTED', self, self.twitchbot_rejected),
+                abstracts.Handler("DSC:MSG", self, self.logmessage),
+                abstracts.Handler('TWITCH:MOD', self, self.mod_action, priority=abstracts.Handler.PRIORITY_MIN)]
+
     
-    def timeout(self, created_by=None, args=None, **kw):
-        if not (created_by.lower()=='nightbot' and cfg['Timeout_Logging']['Ignore_Bots'].lower()=='true'):
-            sleep(.5) #10 Threads in the pool, not concerned. Go away with your best practices.
-            bot = pluginmanager.resources["DSC"]["BOT"]
-            loop = pluginmanager.resources["DSC"]["LOOP"]
-            message = '`%s` timed out `%s` for `%s` seconds.'%(created_by,args[0],args[1])
-            if len(args)>2:
-                message = message + " Reason: `%s`"%args[2].replace('`','\'')
-            with self.msglock:
-                if args[0] in self.msglog:
-                    message = message + " ```%s: %s```"%(args[0],self.msglog[args[0]].replace('`','\''))
-            asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['ManualChannel'])),message), loop)
+    def lastmsg(self, user, set=None):
+        with self.msglock:
+            if clock()-self.refreshtime>43200:
+                self.msglog = {}
+                self.refreshtime = clock()
+            if set:
+                self.msglog[user] = set
+            return self.msglog.get(user)
+    
+    def mod_action(self, moderation_action=None, **kw):
+        bot = pluginmanager.resources["DSC"]["BOT"]
+        loop = pluginmanager.resources["DSC"]["LOOP"]
+        message = None
+        if moderation_action=='twitchbot_rejected':
+            sleep(30)
+            with self.rejectmsglock:
+                if kw['msg_id'] in self.rejectmsg:
+                    user=kw['args'][0]
+                    userid = pluginmanager.plugins['twitchapi'].getUser(name=user).getUserID()
+                    message = '%s (%s):```%s````Denied` by `%s`'%(user, userid, self.lastmsg(user, kw['args'][1]), self.rejectmsg.pop(kw['msg_id']))
+        elif moderation_action=='denied_twitchbot_message':
+            if not kw['created_by'].lower()==pluginmanager.plugins['twitchconnector'].nick().lower():
+                with self.rejectmsglock:
+                    self.rejectmsg[kw['msg_id']]=kw['created_by']
+        elif moderation_action=='timeout':
+            if not (kw['created_by'].lower()=='nightbot' and cfg['Timeout_Logging']['Ignore_Bots'].lower()=='true'):
+                sleep(.5)
+                user = kw['args'][0]
+                userid = kw['target_user_id']
+                message = '%s (%s):```%s````Timed out (%ss)` by `%s`'%(user, userid, self.lastmsg(user), kw['args'][1], kw['created_by'])
+                if len(kw['args'])>2:
+                    message = message + " Reason: `%s`"%kw['args'][2].replace('`','\'')
+        elif moderation_action=='ban':
+            sleep(.5)
+            user = kw['args'][0]
+            userid = kw['target_user_id']
+            message = '%s (%s):```%s````Banned` by `%s`'%(user, userid, self.lastmsg(user), kw['created_by'])
+            if len(kw['args'])>1:
+                message = message + " Reason: `%s`"%kw['args'][1].replace('`','\'')
+        if message:    
+            asyncio.run_coroutine_threadsafe(bot.send_message(bot.get_channel(str(cfg['Reporting']['Channel'])),str(message)), loop)
     
     def twitchbot_rejected(self, msg_id=None, args=None, twitchchannel=None, **kw):
         if self.ircmsg(nick=args[0], target=twitchchannel, data=args[1]):
@@ -120,7 +146,6 @@ class Plugin(abstracts.Plugin):
     
     def ircmsg(self, nick=None, target=None, data=None, **kw):
         cid = pluginmanager.resources["TWITCH"]["CLI-ID"]
-        result = False
         if 'tags' in kw and 'mod' in kw['tags'] and kw['tags']['mod']=='1':
             me = regperm.match(data)
             if me:
@@ -130,52 +155,39 @@ class Plugin(abstracts.Plugin):
             if not permitCheck(nick):
                 spam, age = isSpamBot(nick, data, cid)
                 if spam:
-                    result = True
                     bot = pluginmanager.resources["TWITCH"]["BOT"]
-                    disbot = pluginmanager.resources["DSC"]["BOT"]
-                    loop = pluginmanager.resources["DSC"]["LOOP"]
-                    bot.privmsg(target, '.ban %s'%nick)
-                    asyncio.run_coroutine_threadsafe(disbot.send_message(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])),'%s: "%s" (Age: %s)'%(nick,data,str(timedelta(seconds=floor(age))))), loop)
+                    bot.privmsg(target, '.ban %s Spambot Detected'%nick)
                 elif nick.lower() in revokelist and containsLink(data):
-                    result = True
                     bot = pluginmanager.resources["TWITCH"]["BOT"]
                     bot.privmsg(target, '.timeout %s 60 Link privileges revoked'%nick)                
         except:
             print('Error in spambot filter.\nUser: %s\nMessage: "%s"'%(nick,data))
             print(traceback.format_exc())
-        with self.msglock:
-            if clock()-self.refreshtime>43200:
-                self.msglog = {}
-            self.msglog[nick] = data
-        return result
-        
-    def bancnt(self, message=None, args=None, pargs=None, **kw):
-        disbot = pluginmanager.resources["DSC"]["BOT"]
+        self.lastmsg(nick, data)
+            
+    def logmessage(self, message):
+        bot = pluginmanager.resources["DSC"]["BOT"]
         loop = pluginmanager.resources["DSC"]["LOOP"]
-        asyncio.run_coroutine_threadsafe(disbot.send_typing(message.channel), loop)
-        asyncio.run_coroutine_threadsafe(self.bancount(disbot, message.channel, pargs),loop)
-                     
-    async def bancount(self, disbot, channel, pargs):
-        counter = 0
-        if pargs['s']:
-            mod = 'second'
-            dtime = pargs['time']
-        elif pargs['m']:
-            mod = 'minute'
-            dtime = 60*pargs['time']
-        elif pargs['d']:
-            mod = 'day'
-            dtime = 86400*pargs['time']
-        elif pargs['w']:
-            mod = 'week'
-            dtime = 604800*pargs['time']
-        else:
-            mod = 'hour'
-            dtime = 3600*pargs['time']
-        async for m in disbot.logs_from(disbot.get_channel(str(cfg['Reporting']['AutoChannel'])), limit=500, after=(datetime.utcnow()-timedelta(seconds=dtime))):
-            if m.author == disbot.user:
-                counter += 1
-        await disbot.send_message(channel, 'There have been %d automated bans in the past %s %s(s).'%(counter, pargs['time'], mod))
+        if str(message.channel.id)==cfg['Reporting']['Channel'] and message.author!=bot.user:
+            if message.type==MessageType.pins_add:
+                pinned_messages = asyncio.run_coroutine_threadsafe(bot.pins_from(message.channel), loop).result()
+                with self.pinlock:
+                    self.pins[message.author] = pinned_messages[0]
+                    for msg in pinned_messages:
+                        unused=True
+                        for user in self.pins:
+                            if msg==self.pins[user]:
+                                unused=False
+                        if unused:
+                            asyncio.run_coroutine_threadsafe(bot.unpin_message(msg), loop)
+            elif message.type==MessageType.default:
+                with self.pinlock:
+                    if message.author in self.pins:
+                        msg = self.pins.pop(message.author)
+                        asyncio.run_coroutine_threadsafe(bot.edit_message(msg, new_content=msg.content+' `(%s)`'%message.content), loop)
+                        asyncio.run_coroutine_threadsafe(bot.unpin_message(msg), loop)
+            asyncio.run_coroutine_threadsafe(bot.delete_message(message), loop)
+        
         
     def revoke(self, message=None, pargs=None,**kw):
         msg = None
