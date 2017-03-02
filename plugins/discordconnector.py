@@ -40,6 +40,12 @@ class Connector(Thread):
     
     async def on_message(self, message):
         pluginmanager.runEvent("DSC:MSG", message)
+        
+    async def on_message_edit(self, before, after):
+        if before.pinned and not after.pinned:
+            pluginmanager.runEvent("DSC:UNPIN", after)
+        elif after.pinned and not before.pinned:
+            pluginmanager.runEvent("DSC:PIN", after)
 
     def run(self):
         self.loop = asyncio.new_event_loop()
@@ -47,6 +53,7 @@ class Connector(Thread):
         self.bot = discord.Client(loop=self.loop)
         self.bot.event(self.on_ready)
         self.bot.event(self.on_message)
+        self.bot.event(self.on_message_edit)
         token = config.load("discord", defaults)["Discord"]["Token"]
         self.loop.create_task(self.bot.start(token))
         rec = {"BOT":self.bot,"LOOP":self.loop}
