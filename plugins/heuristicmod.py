@@ -117,7 +117,7 @@ class Plugin(abstracts.Plugin):
                 if kw['msg_id'] in self.rejectmsg:
                     user=kw['args'][0]
                     userid = pluginmanager.plugins['twitchapi'].getUser(name=user).getUserID()
-                    message = '%s (%s):```%s````Denied` by `%s`'%(user, userid, self.lastmsg(user, kw['args'][1]), self.rejectmsg.pop(kw['msg_id']))
+                    message = '`%s (%s)`:```%s````Denied` by `%s`'%(user, userid, self.lastmsg(user, kw['args'][1]), self.rejectmsg.pop(kw['msg_id']))
         elif moderation_action=='denied_twitchbot_message':
             if not kw['created_by'].lower()==pluginmanager.plugins['twitchconnector'].nick().lower():
                 with self.rejectmsglock:
@@ -127,14 +127,14 @@ class Plugin(abstracts.Plugin):
                 sleep(.5)
                 user = kw['args'][0]
                 userid = kw['target_user_id']
-                message = '%s (%s):```%s````Timed out (%ss)` by `%s`'%(user, userid, self.lastmsg(user), kw['args'][1], kw['created_by'])
+                message = '`%s (%s)`:```%s````Timed out (%ss)` by `%s`'%(user, userid, self.lastmsg(user), kw['args'][1], kw['created_by'])
                 if len(kw['args'])>2:
                     message = message + " Reason: `%s`"%kw['args'][2].replace('`','\'')
         elif moderation_action=='ban':
             sleep(.5)
             user = kw['args'][0]
             userid = kw['target_user_id']
-            message = '%s (%s):```%s````Banned` by `%s`'%(user, userid, self.lastmsg(user), kw['created_by'])
+            message = '`%s (%s)`:```%s````Banned` by `%s`'%(user, userid, self.lastmsg(user), kw['created_by'])
             if len(kw['args'])>1:
                 message = message + " Reason: `%s`"%kw['args'][1].replace('`','\'')
         if message:    
