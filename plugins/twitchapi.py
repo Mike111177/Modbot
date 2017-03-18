@@ -50,7 +50,10 @@ def getFollowData(user, channel):
         
         
 def parseDate(datestr):
-    return datetime.strptime(datestr, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    try:
+        return datetime.strptime(datestr, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    except:
+        return datetime.strptime(datestr, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
 class Plugin(abstracts.Plugin):
     
